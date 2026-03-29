@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install CPU-only torch to keep CI fast
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install flake8 pytest
+          # Install the rest of the requirements (excluding torch already installed)
+          grep -v "^torch" requirements.txt | pip install -r /dev/stdin || true
+
+      - name: Lint with flake8
+        run: |
+          flake8 src/ tests/ \
+            --max-line-length=100 \
+            --extend-ignore=E203,W503
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v --tb=short
